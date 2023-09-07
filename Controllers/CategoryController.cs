@@ -1,24 +1,51 @@
+using BulkyBook.Dependencies;
 using BulkyBook.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BulkyBook.Controllers;
 [ApiController]
 [Route("api/[controller]")]
+[Produces("application/json")]
 public class CategoryController : Controller
 {
    private readonly ApplicationDbContext _context;
+   private readonly ILogger<CategoryController> _logger;
+   private readonly Dictionary<int, IMyDependency> handlers;
 
-        public CategoryController(ApplicationDbContext context)
+        public CategoryController(ApplicationDbContext context,ILogger<CategoryController> logger,IEnumerable<IMyDependency> myDep)
         {
             _context = context;
+            _logger = logger;
+            int c = 0;
+            this.handlers = myDep.ToDictionary(
+                (handler) => c++,
+                handler => handler
+            );
         }
 
         // GET: api/category
         [HttpGet]
+        [Authorize(Policy = "adham")]
         public IActionResult GetCategories()
         {
             List<Category> categories = _context.Categories.ToList();
-            return Ok(categories);
+            this.handlers.TryGetValue(0, out IMyDependency _myDep);
+            if (_myDep == null)
+                return Ok(0);
+            _myDep.WriteMessage("adham");
+            this.handlers.TryGetValue(1, out IMyDependency _myDep2);
+            if (_myDep2 == null)
+                return Ok(1);
+            _myDep.WriteMessage("adham");
+            _logger.LogInformation("hello zizo");
+            return Ok(new Dictionary<string, object>()
+                {
+                    { "name", _myDep.Name },
+                    { "name2", _myDep2.Name },
+                    { "categories", categories },
+                }
+            );
         }
 
         // GET: api/categories/1
@@ -37,6 +64,7 @@ public class CategoryController : Controller
 
         // POST: api/categories
         [HttpPost]
+        /*[ValidateAntiForgeryToken]*/
         public IActionResult PostCategory([FromBody] Category category)
         {
             if (ModelState.IsValid)
